@@ -87,9 +87,9 @@ function matrixToHtml(A, B) {
     A.forEach((row, i) => {
         html += '<tr>';
         row.forEach(value => {
-            html += `<td style="border: 1px solid black; padding: 5px;">${value.toFixed(2)}</td>`;
+            html += `<td style="border: 1px solid black; padding: 5px;">${value.toFixed(4)}</td>`;
         });
-        html += `<td style="border: 1px solid black; padding: 5px;">| ${B[i].toFixed(2)}</td>`;
+        html += `<td style="border: 1px solid black; padding: 5px;">| ${B[i].toFixed(4)}</td>`;
         html += '</tr>';
     });
     html += '</table>';
@@ -105,7 +105,7 @@ function displayResult(solution) {
 
     solution.forEach((value, index) => {
         const variable = columnToLetter(index);
-        resultDiv.innerHTML += `<p>${variable} = ${value.toFixed(2)}</p>`;
+        resultDiv.innerHTML += `<p>${variable} = ${value.toFixed(4)}</p>`;
     });
 
     document.getElementById('matrix-container').appendChild(resultDiv);
