@@ -84,9 +84,12 @@
         input.className = 'matrix-input';
         input.id = `mx_${i}_${j}`;
         input.style.width = '30px';
-        rowDiv.appendChild(input);
-        validateInput(input)
 
+        input.addEventListener('input', function () {
+          validateInput(input);
+        });
+
+        rowDiv.appendChild(input);
 
         // Add separators between variables dynamically
         const separator = document.createElement('span');
