@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gauss Elimination Calculator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="matrix-controls">
+  <label>Rows: <input type="number" id="rows" min="2" max="6" value="3" onchange="createMatrix()"></label>
+  <label>Columns: <input type="number" id="columns" min="3" max="6" value="4" onchange="createMatrix()"></label>
+  <button onclick="createMatrix()">Generate Matrix</button>
+  <button onclick="CalculateMatrix()"> Calculate   </button>
+  <button onclick="ClearMatrix(document.getElementById('matrix-container')); createMatrix();"> Reset   </button>
+  <br>
+
+</div>
+
+
+<div id="matrix-container"></div>
+
+<script src="index.js">
+
+</script>
+<script>
+
+  // Clear the matrix container
+  function ClearMatrix() {
+    const container = document.getElementById('matrix-container');
+    container.innerHTML = '';
+  }
+
+  // Helper function to get variable names from the input boxes
+  function columnToLetter(index) {
+    const variables = document.querySelectorAll('.variable-input');
+    if (variables && variables[index]) {
+      return variables[index].value.trim() || `x${index}`; // Default to x, y, z, etc. if input is empty
+    }
+    return `x${index}`; // Fallback if variables are not yet created
+  }
+
+  // Create the matrix
+  function createMatrix() {
+    const rows = parseInt(document.getElementById('rows').value);
+    const columns = parseInt(document.getElementById('columns').value);
+    const container = document.getElementById('matrix-container');
+
+    // Clear previous matrix
+    ClearMatrix();
+
+    // Section for variable inputs
+    const variableInputs = document.createElement('div');
+    variableInputs.id = 'variable-inputs';
+    variableInputs.textContent = 'Variables: ';
+
+    for (let i = 0; i < columns - 1; i++) {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = String.fromCharCode(120 + i); // Default: x, y, z, etc.
+      input.className = 'variable-input';
+      input.style.width = '30px';
+      input.id = `letter_${i}`;
+
+      // Add onchange event to update variable names
+      input.addEventListener('input', (e) => {
+        const newLetter = e.target.value || '?'; // Fallback to '?' if input is empty
+        updateVariableNames(i, newLetter);
+      });
+
+      variableInputs.appendChild(input);
+    }
+    container.appendChild(variableInputs);
+    // Create the matrix rows and columns
+
+    for (let i = 0; i < rows; i++) {
+      const rowDiv = document.createElement('div');
+      rowDiv.className = 'matrix-row';
+
+      for (let j = 0; j < columns; j++) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = '';
+        input.className = 'matrix-input';
+        input.id = `mx_${i}_${j}`;
+        input.style.width = '30px';
+        rowDiv.appendChild(input);
+        validateInput(input)
+
+
+        // Add separators between variables dynamically
+        const separator = document.createElement('span');
+        separator.id = `separator_${i}_${j}`;
+        if (j < columns - 2) {
+          separator.textContent = ` ${columnToLetter(j)} +`;
+        } else if (j === columns - 2) {
+          separator.textContent = ` ${columnToLetter(j)} =`;
+        } else {
+          separator.textContent = ''; // No separator after the last column
+        }
+        rowDiv.appendChild(separator);
+      }
+      container.appendChild(rowDiv);
+    }
+  }
+
+  function updateVariableNames(columnIndex, newLetter) {
+    const rows = parseInt(document.getElementById('rows').value);
+    for (let i = 0; i < rows; i++) {
+      const separator = document.getElementById(`separator_${i}_${columnIndex}`);
+      if (separator) {
+        if (columnIndex < parseInt(document.getElementById('columns').value) - 2) {
+          separator.textContent = ` ${newLetter} +`;
+        } else if (columnIndex === parseInt(document.getElementById('columns').value) - 2) {
+          separator.textContent = ` ${newLetter} =`;
+        }
+      }
+    }
+  }
+
+  //Limitē sibolus kurus var ievadīt ievadīšanas logos
+  //Atlautie skaitli no 1 līdz 9 viens . un -skaitla priekšā
+  function validateInput(input) {
+    input.value = input.value.replace(/[^0-9.-]/g, '');
+    if (input.value.split('.').length > 2) {
+      input.value = input.value.replace(/\.+$/, '');
+    }
+    if (input.value.indexOf('-') > 0) {
+      input.value = input.value.replace(/-/g, '');
+    }
+  }
+
+  function GetMatrixFromInput(){
+    const rows = parseInt(document.getElementById('rows').value); //current_rows
+    const columns = parseInt(document.getElementById('columns').value); //current_columns
+    const matrix = [];
+      for (let i = 0 ; i < rows ; i++) {
+      const row = [];
+      for (let j = 0 ; j < columns ; j++) {
+        const input = document.getElementById(`mx_${i}_${j}`);
+        //console.log (`mx_${i}_${j}: ` + input.value);
+        row.push((input.value));
+      }
+      matrix.push(row);
+    }
+    return matrix;
+  }
+
+  // Initial matrix generation
+  createMatrix();
+</script>
+</body>
+</html>

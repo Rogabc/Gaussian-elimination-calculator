@@ -1,0 +1,37 @@
+ody {
+    font-family: Arial, sans-serif;
+    max-width: 800px;
+    margin: auto;
+}
+
+#matrix-controls {
+    margin-bottom: 20px;
+}
+
+#matrix-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.matrix-row {
+    display: flex;
+    gap: 10px;
+}
+
+.matrix-input {
+    width: 50px;
+    text-align: center;
+}
+
+#matrix-controls button {
+
+    padding: 10px 20px;
+    margin: 0 auto;
+
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+}
+
