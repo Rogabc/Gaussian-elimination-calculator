@@ -7,14 +7,7 @@
   <link rel="stylesheet" href="style.css" />
   <!-- Load MathJax -->
   <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js"></script>
-  <style>
-    /* Some simple styling */
-    .matrix-row { margin-bottom: 5px; }
-    .matrix-input { width: 40px; margin-right: 2px; }
-    #variable-inputs input { width: 30px; margin-right: 5px; }
-    span.latex-block { display: inline-block; margin: 1em 0; }
-    .section { margin-bottom: 2em; }
-  </style>
+
 </head>
 <body>
 <!-- INPUTS SECTION -->
@@ -183,88 +176,87 @@
     MathJax.typeset();
   }
 
-  // Display the solution check.
-  // For each row, substitute the computed solution into the original coefficients,
-  // then show the left-hand side computed value vs. the constant.
-  function CheckSolution(originalMatrix, solution, names) {
-    const div = document.getElementById("check_div");
-    // Make a deep copy of the original matrix.
-    let checkMatrix = JSON.parse(JSON.stringify(originalMatrix));
-    let rows = checkMatrix.length;
-    let columns = checkMatrix[0].length;
-    // Array used to signal display properties (you can adjust if needed).
-    let checkArray = new Array(rows).fill(1);
 
-    // Initially display the original system.
-    DisplayEquation("check_div", checkMatrix, names, true);
-
-    // For each row, substitute the computed solution.
-    for (let row = 0; row < rows; row++) {
-      let computed = 0;
-      // Process each variable column.
-      for (let col = 0; col < columns; col++) {
-        // For variable coefficients (columns 0 to columns-2), multiply by solution.
-        if (col < columns - 1) {
-          let substituted = checkMatrix[row][col] * solution[col];
-          checkMatrix[row][col] = substituted;
-          computed += substituted;
-        } else {
-          // Constant column remains unchanged.
-          computed += checkMatrix[row][col];
-        }
-      }
-      checkArray[row] = 0;
-      // Display the check for this substitution step.
-      DisplayCheck("check_div", checkMatrix, names, checkArray, true);
-    }
-
-    // Build a final check matrix.
-    let endCheckMatrix = Array.from({ length: rows }, () => new Array(columns).fill(0));
-    let endCheckArray = new Array(rows).fill(1);
-    for (let row = 0; row < rows; row++) {
-      let sum = 0;
-      for (let col = 0; col < columns - 1; col++) {
-        sum += checkMatrix[row][col];
-      }
-      endCheckMatrix[row][0] = sum;
-      endCheckMatrix[row][columns - 1] = checkMatrix[row][columns - 1];
-    }
-    // Display the final check (where each equation should satisfy LHS = constant).
-    DisplayCheck("check_div", endCheckMatrix, names, endCheckArray, false);
-  }
-
-  // Display check: similar to DisplayEquation but used for the check output.
-  function DisplayCheck(divId, matrix, names, checkArray, showContinuation) {
+  // DisplayCheck: displays the substituted matrix without performing extra multiplication.
+  // It just shows the terms that are already computed in the matrix.
+  function DisplayCheck(divId, matrix, showContinuation) {
     const div = document.getElementById(divId);
     let mathContent = "\\[\\begin{cases}\n";
     for (let r = 0; r < matrix.length; r++) {
       let rowStr = "";
       let terms = [];
+      // For each substituted term (except the constant column)
       for (let c = 0; c < matrix[r].length - 1; c++) {
-        let coeff = matrix[r][c];
-        if (coeff !== 0) {
-          let term = "";
-          if (coeff === 1)
-            term = names[c];
-          else if (coeff === -1)
-            term = "-" + names[c];
-          else
-            term = formatDisplay(coeff) + names[c];
-          terms.push(term);
+        let substitutedValue = matrix[r][c]; // already coefficient * solution value
+        if (Math.abs(substitutedValue) > 1e-6) {
+          // Simply show the substituted value.
+          terms.push(formatDisplay(substitutedValue));
         }
       }
       rowStr += terms.join(" + ");
+      // Append the constant
       rowStr += " = " + formatDisplay(matrix[r][matrix[r].length - 1]);
       mathContent += rowStr + "\\\\\n";
     }
     mathContent += "\\end{cases}";
-
-    // Append arrow if needed, then close the math mode.
     if (showContinuation) {
       mathContent += " \\Rightarrow";
     }
     mathContent += "\\]";
+    div.innerHTML += `<span class="latex-block">${mathContent}</span>`;
+    MathJax.typeset();
+  }
 
+  // CheckSolution: calculates the substituted matrix once (each coefficient is multiplied by its
+  // corresponding solution value), then sums the contributions.
+  function CheckSolution(originalMatrix, solution, names) {
+    // Display the original system for reference.
+    DisplayEquation("check_div", originalMatrix, names, true);
+
+    let rows = originalMatrix.length;
+    let columns = originalMatrix[0].length;
+
+    // Build a substituted matrix (each coefficient multiplied by solution value).
+    let subMatrix = [];
+    for (let r = 0; r < rows; r++) {
+      subMatrix[r] = [];
+      for (let c = 0; c < columns - 1; c++) {
+        subMatrix[r][c] = originalMatrix[r][c] * solution[c];
+      }
+      // Copy constant unchanged.
+      subMatrix[r][columns - 1] = originalMatrix[r][columns - 1];
+    }
+
+    // Display the substituted matrix.
+    DisplayCheck("check_div", subMatrix, true);
+
+    // Build a final check matrix:
+    // For each row, sum the substituted contributions (columns 0 .. columns-2) and compare to constant.
+    let finalMatrix = [];
+    for (let r = 0; r < rows; r++) {
+      let sum = 0;
+      for (let c = 0; c < columns - 1; c++) {
+        sum += subMatrix[r][c];
+      }
+      finalMatrix[r] = [sum, subMatrix[r][columns - 1]];
+    }
+    // Display the final check (each row should satisfy LHS = constant).
+    DisplayFinalCheck("check_div", finalMatrix, false);
+  }
+
+  // DisplayFinalCheck: displays a final two-column result: left-hand side sum = constant.
+  function DisplayFinalCheck(divId, finalMatrix, showContinuation) {
+    const div = document.getElementById(divId);
+    let mathContent = "\\[\\begin{cases}\n";
+    for (let r = 0; r < finalMatrix.length; r++) {
+      let rowStr = formatDisplay(finalMatrix[r][0]) + " = " + formatDisplay(finalMatrix[r][1]);
+      mathContent += rowStr + "\\\\\n";
+    }
+    mathContent += "\\end{cases}";
+    if (showContinuation) {
+      mathContent += " \\Rightarrow";
+    }
+    mathContent += "\\]";
     div.innerHTML += `<span class="latex-block">${mathContent}</span>`;
     MathJax.typeset();
   }
