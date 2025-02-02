@@ -36,3 +36,124 @@ ody {
     border-radius: 5px;
 }
 
+#matrix-controls {
+    margin-bottom: 20px;
+}
+
+#matrix-controls input[type="number"] {
+    width: 50px;
+    margin-right: 10px;
+}
+
+#matrix-controls button {
+    margin-right: 10px;
+    padding: 5px 15px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#matrix-wrapper {
+    display: flex;
+    align-items: center;
+    position: relative;
+    margin: 20px;
+}
+
+/* Bracket styles */
+.matrix-bracket {
+    position: relative;
+    width: 15px;
+    font-family: serif;
+    font-size: 20px;
+    line-height: 1;
+    padding: 10px 0;
+}
+
+.matrix-bracket::before,
+.matrix-bracket::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 15px;
+    height: 2px;
+    background-color: black;
+}
+
+.matrix-bracket::before {
+    top: 0;
+}
+
+.matrix-bracket::after {
+    bottom: 0;
+}
+
+.matrix-bracket-left::after,
+.matrix-bracket-right::after {
+    transform: translateY(-50%) rotate(0deg);
+}
+
+.matrix-bracket-left::before {
+    transform: translateY(-50%) rotate(-30deg);
+}
+
+.matrix-bracket-left::after {
+    transform: translateY(50%) rotate(30deg);
+}
+
+.matrix-bracket-right::before {
+    transform: translateY(-50%) rotate(30deg);
+}
+
+.matrix-bracket-right::after {
+    transform: translateY(50%) rotate(-30deg);
+}
+
+/* Vertical line of the bracket */
+.matrix-bracket::after {
+    width: 2px;
+    height: calc(100% - 20px);
+    top: 10px;
+    background-color: black;
+}
+
+#matrix-container {
+    padding: 0 15px;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    line-height: 1.6;
+}
+.matrix-row {
+    margin-bottom: 5px;
+}
+.matrix-input {
+    width: 40px;
+    margin-right: 2px;
+}
+#variable-inputs input {
+    width: 30px;
+    margin-right: 5px;
+}
+span.latex-block {
+    display: inline-block;
+    margin: 1em 0;
+}
+hr {
+    margin: 2em 0;
+    border: 0;
+    border-top: 1px solid #ccc;
+}
+/* Section styling */
+.section-title {
+    font-size: 1.4em;
+    font-weight: bold;
+    margin-bottom: 0.5em;
+}
+.section {
+    margin-bottom: 2em;
+}

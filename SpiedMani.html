@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gauss Elimination Calculator</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Load MathJax -->
+  <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* Some simple styling */
+    .matrix-row { margin-bottom: 5px; }
+    .matrix-input { width: 40px; margin-right: 2px; }
+    #variable-inputs input { width: 30px; margin-right: 5px; }
+    span.latex-block { display: inline-block; margin: 1em 0; }
+    .section { margin-bottom: 2em; }
+  </style>
+</head>
+<body>
+<!-- INPUTS SECTION -->
+<section id="inputs_section" class="section">
+  <div class="section-title">Inputs</div>
+  <div id="matrix-controls">
+    <label>Rows:
+      <input type="number" id="rows" min="2" max="6" value="3" onchange="createMatrix()" />
+    </label>
+    <label>Columns:
+      <input type="number" id="columns" min="3" max="6" value="4" onchange="createMatrix()" />
+    </label>
+    <button onclick="createMatrix()">Generate Matrix</button>
+    <button onclick="CalculateMatrix()">Calculate</button>
+    <button onclick="ClearMatrix(); createMatrix(); displayReset();">Reset</button>
+  </div>
+  <div id="matrix-container"></div>
+</section>
+
+<hr />
+
+<!-- STEP-BY-STEP SOLUTION SECTION -->
+<section id="steps_section" class="section">
+  <div class="section-title">Step-by-Step Solution</div>
+  <div id="steps_div"></div>
+</section>
+
+<hr />
+
+<!-- SOLUTION CHECK SECTION -->
+<section id="check_section" class="section">
+  <div class="section-title">Solution Check</div>
+  <div id="check_div"></div>
+</section>
+
+<hr />
+
+<!-- ANSWER SECTION -->
+<section id="solution_section" class="section">
+  <div class="section-title">Answer</div>
+  <div id="solution_div"></div>
+</section>
+
+<script>
+  /* ======================================
+     HELPER FUNCTIONS
+  ====================================== */
+
+  // Format numbers to 4 decimals for display only.
+  function formatDisplay(num) {
+    return num.toFixed(4);
+  }
+
+  // Reset the content of the output sections.
+  function displayReset() {
+    ['steps_div', 'solution_div', 'check_div'].forEach(function(divId) {
+      const div = document.getElementById(divId);
+      if (div) {
+        div.innerHTML = "";
+        div.appendChild(document.createElement("br"));
+      }
+    });
+  }
+
+  /* ======================================
+     VISUALIZATION FUNCTIONS (with LaTeX)
+  ====================================== */
+
+  // Display system of equations as LaTeX "cases".
+  function DisplayEquation(divId, matrix, names, showContinuation) {
+    const div = document.getElementById(divId);
+    let mathContent = "\\[\\begin{cases}\n";
+    for (let r = 0; r < matrix.length; r++) {
+      let rowStr = "";
+      let terms = [];
+      for (let c = 0; c < matrix[r].length - 1; c++) {
+        let coeff = matrix[r][c];
+        if (coeff !== 0) {
+          let term = "";
+          if (coeff === 1)
+            term = names[c];
+          else if (coeff === -1)
+            term = "-" + names[c];
+          else
+            term = formatDisplay(coeff) + names[c];
+          terms.push(term);
+        }
+      }
+      rowStr += terms.join(" + ");
+      rowStr += " = " + formatDisplay(matrix[r][matrix[r].length - 1]);
+      mathContent += rowStr + "\\\\\n";
+    }
+    mathContent += "\\end{cases}";
+    if (showContinuation) { mathContent += " \\Rightarrow"; }
+    mathContent += "\\]";
+    div.innerHTML += `<span class="latex-block">${mathContent}</span>`;
+    MathJax.typeset();
+  }
+
+  // Display elimination operation with before and after rows.
+  function DisplayOperation(
+          divId, koef, Rst, Rnd, firstRow, secondRow, thirdRow, names, position, showContinuation
+  ) {
+    const div = document.getElementById(divId);
+    let matrixContent = "";
+    matrixContent += `${formatDisplay(koef)} \\cdot R${Rst} + R${Rnd}: & \\\\ \n`;
+
+    function buildRow(row) {
+      let rowStr = "";
+      let terms = [];
+      for (let i = 0; i < row.length - 1; i++) {
+        let coeff = row[i];
+        if (coeff !== 0) {
+          let term = "";
+          if (coeff === 1)
+            term = names[i];
+          else if (coeff === -1)
+            term = "-" + names[i];
+          else
+            term = formatDisplay(coeff) + names[i];
+          terms.push(term);
+        }
+      }
+      rowStr += terms.join(" + ");
+      rowStr += " = " + formatDisplay(row[row.length - 1]);
+      return rowStr;
+    }
+
+    matrixContent += buildRow(secondRow) + " \\\\ \n";    //r1
+    matrixContent += buildRow(firstRow) + " \\\\ \n";     //r2
+    matrixContent += "\\hline\\\\ \n";
+    matrixContent += buildRow(thirdRow) + " \\\\ \n";
+
+    let leftDelim = "", rightDelim = "";
+    if (position === "start") {
+      leftDelim = "\\left[";
+      rightDelim = "\\right.";
+    } else if (position === "end") {
+      leftDelim = "\\left.";
+      rightDelim = "\\right]";
+    } else if (position === "only") {
+      leftDelim = "\\left[";
+      rightDelim = "\\right]";
+    }
+
+    let mathContent = "\\[";
+    mathContent += leftDelim + "\\begin{matrix}\n";
+    mathContent += matrixContent;
+    mathContent += "\\end{matrix}" + rightDelim;
+    if (showContinuation) { mathContent += " \\Rightarrow"; }
+    mathContent += "\\]";
+
+    div.innerHTML += `<span class="latex-block">${mathContent}</span>`;
+    MathJax.typeset();
+  }
+
+  // Display the final computed solution in a system-of-equations style.
+  function DisplaySolution(divId, solutions, names) {
+    const div = document.getElementById(divId);
+    let mathContent = "\\[\\begin{cases}\n";
+    for (let i = 0; i < names.length; i++) {
+      mathContent += `${names[i]} = ${formatDisplay(solutions[i])} \\\\ \n`;
+    }
+    mathContent += "\\end{cases}\\]";
+    div.innerHTML += `<p>${mathContent}</p>`;
+    MathJax.typeset();
+  }
+
+  // Display the solution check.
+  // For each row, substitute the computed solution into the original coefficients,
+  // then show the left-hand side computed value vs. the constant.
+  function CheckSolution(originalMatrix, solution, names) {
+    const div = document.getElementById("check_div");
+    // Make a deep copy of the original matrix.
+    let checkMatrix = JSON.parse(JSON.stringify(originalMatrix));
+    let rows = checkMatrix.length;
+    let columns = checkMatrix[0].length;
+    // Array used to signal display properties (you can adjust if needed).
+    let checkArray = new Array(rows).fill(1);
+
+    // Initially display the original system.
+    DisplayEquation("check_div", checkMatrix, names, true);
+
+    // For each row, substitute the computed solution.
+    for (let row = 0; row < rows; row++) {
+      let computed = 0;
+      // Process each variable column.
+      for (let col = 0; col < columns; col++) {
+        // For variable coefficients (columns 0 to columns-2), multiply by solution.
+        if (col < columns - 1) {
+          let substituted = checkMatrix[row][col] * solution[col];
+          checkMatrix[row][col] = substituted;
+          computed += substituted;
+        } else {
+          // Constant column remains unchanged.
+          computed += checkMatrix[row][col];
+        }
+      }
+      checkArray[row] = 0;
+      // Display the check for this substitution step.
+      DisplayCheck("check_div", checkMatrix, names, checkArray, true);
+    }
+
+    // Build a final check matrix.
+    let endCheckMatrix = Array.from({ length: rows }, () => new Array(columns).fill(0));
+    let endCheckArray = new Array(rows).fill(1);
+    for (let row = 0; row < rows; row++) {
+      let sum = 0;
+      for (let col = 0; col < columns - 1; col++) {
+        sum += checkMatrix[row][col];
+      }
+      endCheckMatrix[row][0] = sum;
+      endCheckMatrix[row][columns - 1] = checkMatrix[row][columns - 1];
+    }
+    // Display the final check (where each equation should satisfy LHS = constant).
+    DisplayCheck("check_div", endCheckMatrix, names, endCheckArray, false);
+  }
+
+  // Display check: similar to DisplayEquation but used for the check output.
+  function DisplayCheck(divId, matrix, names, checkArray, showContinuation) {
+    const div = document.getElementById(divId);
+    let mathContent = "\\[\\begin{cases}\n";
+    for (let r = 0; r < matrix.length; r++) {
+      let rowStr = "";
+      let terms = [];
+      for (let c = 0; c < matrix[r].length - 1; c++) {
+        let coeff = matrix[r][c];
+        if (coeff !== 0) {
+          let term = "";
+          if (coeff === 1)
+            term = names[c];
+          else if (coeff === -1)
+            term = "-" + names[c];
+          else
+            term = formatDisplay(coeff) + names[c];
+          terms.push(term);
+        }
+      }
+      rowStr += terms.join(" + ");
+      rowStr += " = " + formatDisplay(matrix[r][matrix[r].length - 1]);
+      mathContent += rowStr + "\\\\\n";
+    }
+    mathContent += "\\end{cases}";
+
+    // Append arrow if needed, then close the math mode.
+    if (showContinuation) {
+      mathContent += " \\Rightarrow";
+    }
+    mathContent += "\\]";
+
+    div.innerHTML += `<span class="latex-block">${mathContent}</span>`;
+    MathJax.typeset();
+  }
+
+  /* ======================================
+    SYSTEM VALIDATION FUNCTION
+    (Detects if the system is valid, has infinite solutions, or no solution.)
+ ====================================== */
+  function detectSystemType(reducedMatrix) {
+    // reducedMatrix: matrix in RREF (or simplified form).
+    // Let m be the number of equations (rows) and n the number of unknowns.
+    let m = reducedMatrix.length;
+    let n = reducedMatrix[0].length - 1; // last column is constant
+
+    let pivotCount = 0;
+    for (let i = 0; i < m; i++) {
+      // Check if row i is all zeros in the coefficients but nonzero in constant.
+      let allZero = true;
+      for (let j = 0; j < n; j++) {
+        if (Math.abs(reducedMatrix[i][j]) > 1e-6) {
+          allZero = false;
+          break;
+        }
+      }
+      if (allZero && Math.abs(reducedMatrix[i][n]) > 1e-6) {
+        // Inconsistent row: 0 = nonzero.
+        return "no solution";
+      }
+      // Otherwise if the row has a pivot (first nonzero in the coefficients),
+      // count it.
+      for (let j = 0; j < n; j++) {
+        if (Math.abs(reducedMatrix[i][j]) > 1e-6) {
+          pivotCount++;
+          break;
+        }
+      }
+    }
+    if (pivotCount < n) {
+      return "infinite solutions"; // free variables exist.
+    }
+    return "normal solution";
+  }
+  /* ======================================
+     MATRIX INPUT/OUTPUT FUNCTIONS
+  ====================================== */
+
+  function columnToLetter(index) {
+    const variables = document.querySelectorAll('.variable-input');
+    if (variables && variables[index])
+      return variables[index].value.trim() || `x_{${index}}`;
+    return `x_{${index}}`;
+  }
+
+  function ClearMatrix() {
+    const matrixContainer = document.getElementById('matrix-container');
+    if (matrixContainer) matrixContainer.innerHTML = '';
+    ['steps_div', 'solution_div', 'check_div'].forEach(id => {
+      document.getElementById(id).innerHTML = "";
+    });
+  }
+
+  function createMatrix() {
+    const rows = parseInt(document.getElementById('rows').value);
+    const columns = parseInt(document.getElementById('columns').value);
+    let matrixContainer = document.getElementById('matrix-container');
+
+    if (!matrixContainer) {
+      const wrapper = document.getElementById('matrix-wrapper');
+      matrixContainer = document.createElement('div');
+      matrixContainer.id = 'matrix-container';
+      wrapper.insertBefore(matrixContainer, document.getElementById('steps_div'));
+    } else {
+      matrixContainer.innerHTML = '';
+    }
+
+    // Variable inputs for non-constant terms.
+    const variableInputs = document.createElement('div');
+    variableInputs.id = 'variable-inputs';
+    variableInputs.textContent = 'Variables: ';
+    for (let i = 0; i < columns - 1; i++) {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = String.fromCharCode(120 + i); // x, y, z, etc.
+      input.className = 'variable-input';
+      input.id = `letter_${i}`;
+      input.addEventListener('input', (e) => {
+        updateVariableNames(i, e.target.value);
+      });
+      variableInputs.appendChild(input);
+    }
+    matrixContainer.appendChild(variableInputs);
+
+    // Build matrix input grid.
+    for (let i = 0; i < rows; i++) {
+      const rowDiv = document.createElement('div');
+      rowDiv.className = 'matrix-row';
+      for (let j = 0; j < columns; j++) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'matrix-input';
+        input.id = `mx_${i}_${j}`;
+        input.addEventListener('input', function() {
+          validateInput(input);
+        });
+        rowDiv.appendChild(input);
+
+        const separator = document.createElement('span');
+        separator.id = `separator_${i}_${j}`;
+        if (j < columns - 2) {
+          separator.textContent = ` ${columnToLetter(j)} +`;
+        } else if (j === columns - 2) {
+          separator.textContent = ` ${columnToLetter(j)} =`;
+        }
+        rowDiv.appendChild(separator);
+      }
+      matrixContainer.appendChild(rowDiv);
+    }
+  }
+
+  function updateVariableNames(columnIndex, newLetter) {
+    const rows = parseInt(document.getElementById('rows').value);
+    for (let i = 0; i < rows; i++) {
+      const separator = document.getElementById(`separator_${i}_${columnIndex}`);
+      if (separator) {
+        if (columnIndex < parseInt(document.getElementById('columns').value) - 2)
+          separator.textContent = ` ${newLetter} +`;
+        else if (columnIndex === parseInt(document.getElementById('columns').value) - 2)
+          separator.textContent = ` ${newLetter} =`;
+      }
+    }
+  }
+
+  function validateInput(input) {
+    input.value = input.value.replace(/[^0-9.-]/g, '');
+    if (input.value.split('.').length > 2)
+      input.value = input.value.replace(/\.+$/, '');
+    if (input.value.indexOf('-') > 0)
+      input.value = input.value.replace(/-/g, '');
+  }
+
+  function GetMatrixFromInput() {
+    const rows = parseInt(document.getElementById('rows').value);
+    const columns = parseInt(document.getElementById('columns').value);
+    const matrix = [];
+    for (let i = 0; i < rows; i++) {
+      const row = [];
+      for (let j = 0; j < columns; j++) {
+        const input = document.getElementById(`mx_${i}_${j}`);
+        row.push(input.value === "" ? 0 : parseFloat(input.value));
+      }
+      matrix.push(row);
+    }
+    return matrix;
+  }
+
+  function getVariableNames() {
+    const inputs = document.querySelectorAll('.variable-input');
+    return Array.from(inputs).map(input => input.value.trim() || "x");
+  }
+
+  /* ======================================
+     GAUSSIAN ELIMINATION (with visualization)
+  ====================================== */
+
+  function gauss(originalMatrix, names) {
+    // Use deep copy for processing.
+    let matrix = JSON.parse(JSON.stringify(originalMatrix));
+    const rows = matrix.length;
+    const columns = matrix[0].length;
+    displayReset(); // Clear previous outputs.
+
+    // ---------- FORWARD ELIMINATION ----------
+    for (let pivot = 0; pivot < rows; pivot++) {
+      DisplayEquation("steps_div", matrix, names, true);
+
+      // Normalize the pivot row: find the first nonzero element.
+      let pNonZero;
+      for (let col = 0; col < columns; col++) {
+        if (matrix[pivot][col] !== 0) {
+          pNonZero = matrix[pivot][col];
+          break;
+        }
+      }
+      for (let col = 0; col < columns; col++) {
+        matrix[pivot][col] = matrix[pivot][col] / pNonZero;
+      }
+      DisplayEquation("steps_div", matrix, names, true);
+
+      // Eliminate entries in rows below.
+      for (let row = pivot + 1; row < rows; row++) {
+        const targetRowBefore = JSON.parse(JSON.stringify(matrix[row]));
+        let koef;
+        for (let col = 0; col < columns; col++) {
+          if (matrix[row][col] !== 0) {
+            koef = matrix[row][col];
+            break;
+          }
+        }
+        const pivotRowCopy = matrix[pivot].map(val => -koef * val);
+        for (let col = 0; col < columns; col++) {
+          matrix[row][col] = pivotRowCopy[col] + matrix[row][col];
+        }
+        DisplayOperation("steps_div", -koef, pivot + 1, row + 1,
+                targetRowBefore, pivotRowCopy, matrix[row],
+                names, "only", true);
+      }
+    }
+
+    // ---------- BACKWARD SUBSTITUTION ----------
+    let solution = new Array(rows).fill(0);
+
+    for (let row = rows - 1; row >= 0; row--) {
+      // Assume constant column is at index columns - 1.
+      let sum = matrix[row][columns - 1];
+      for (let col = row + 1; col < columns - 1; col++) {
+        sum -= matrix[row][col] * solution[col];
+      }
+      solution[row] = sum;
+
+      // For every row above, eliminate the solved variable.
+      for (let aboveRow = row - 1; aboveRow >= 0; aboveRow--) {
+        matrix[aboveRow][columns - 1] -= matrix[aboveRow][row] * solution[row];
+        matrix[aboveRow][row] = 0;
+        // Visualize the change after eliminating the variable in each above row.
+        DisplayEquation("steps_div", matrix, names, true);
+      }
+    }
+
+    // Display the final solution.
+    DisplaySolution("solution_div", solution, names);
+    // Optionally, check the solution.
+    CheckSolution(originalMatrix, solution, names);
+
+    const systemType = detectSystemType(matrix);
+    const typeDiv = document.getElementById("solution_div");
+    typeDiv.innerHTML += `<p><strong>System Type:</strong> ${systemType}</p>`;
+  }
+
+  function CalculateMatrix() {
+    const matrix = GetMatrixFromInput();
+    const names = getVariableNames();
+    gauss(matrix, names);
+  }
+
+  // Initialize the matrix on page load.
+  createMatrix();
+</script>
+</body>
+</html>
